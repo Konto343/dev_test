@@ -1,0 +1,29 @@
+# a personal list of standards to apply during developement
+
+1. All physical objects must comply with the world grid or local grid.
+
+2. All basic part instances (e.g walls, ceilings, floors) whose 
+size on any axis shall only be: 0.5, 0.25, 0.125, 0.0625, etc.
+(Except model DETAILS. The base model's frame must comply with rule above.)
+    All "large" objects are 4x4 studs (x, z)
+    A room's wall height should be 12 studs.
+    Walls "outline" or border a room's floor.
+
+3. Any model whose use is large scale, must be converted to package before being 
+applied across the world scene.
+
+4. Code rules:
+    Code cannot be duplicated. 
+    Module dependencies must be injected locally. 
+    Always use --!strict
+    Using OOP when absolutely needed. (Dont overcomplicate it)
+    Leverage modern API methods when possible.
+    Dont deep nest code, duh.
+    Use (snake_case) naming convention for variables, methods, and objects.
+    NEVER UPPER CASE VARIABLES, NOR THEIR FIRST LETTER.
+    Be simple.
+    
+5. naming rules:
+    "depend" = dependencies
+
+
