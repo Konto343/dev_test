@@ -34,10 +34,8 @@ module.ragdoll = function(player : Player)
 	end
 	
 	humanoid.UseJumpPower = true
-	
 	humanoid.WalkSpeed = 0
 	humanoid.JumpHeight = 0
-	
 	humanoid.PlatformStand = true
 	humanoid.AutoRotate = false
 end
@@ -45,7 +43,6 @@ end
 module.unragdoll = function(player : Player)
 	local char = player.Character or player.CharacterAdded:Wait()
 	local humanoid : Humanoid = char:WaitForChild('Humanoid', 10)
-	
 	humanoid.PlatformStand = false
 
 	for _, obj in char:GetDescendants() do
@@ -59,12 +56,9 @@ module.unragdoll = function(player : Player)
 	end
 	
 	humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-	
 	humanoid.UseJumpPower = true
-	
 	humanoid.WalkSpeed = 16
 	humanoid.JumpHeight = 50
-	
 	humanoid.AutoRotate = true
 end
 

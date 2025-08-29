@@ -171,9 +171,9 @@ function module:shake(intensity : number, duration : number, easing_style)
 
 		local current_intensity = lerp(intensity, 0, progress)
 
-		local off_x = rng:NextNumber() --[[math.random()]] * current_intensity - current_intensity / 2
-		local off_y = rng:NextNumber() --[[math.random()]] * current_intensity - current_intensity / 2
-		local off_z = rng:NextNumber() --[[math.random()]] * current_intensity - current_intensity / 2
+		local off_x = rng:NextNumber() * current_intensity - current_intensity / 2
+		local off_y = rng:NextNumber() * current_intensity - current_intensity / 2
+		local off_z = rng:NextNumber() * current_intensity - current_intensity / 2
 
 		local shake_cframe = current_cframe * CFrame.new(off_x, off_y, off_z)
 		camera.CFrame = shake_cframe

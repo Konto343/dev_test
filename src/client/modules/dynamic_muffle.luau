@@ -2,16 +2,12 @@
 
 local module = {}
 
-local state = false
-
 local local_player = game.Players.LocalPlayer
-local char = local_player.Character or local_player.CharacterAdded:Wait()
-
-local hrp = char:WaitForChild("HumanoidRootPart",4)
-local ts = game:GetService("TweenService")
+local camera = game.Workspace.CurrentCamera :: Camera
+local char = local_player.Character or local_player.CharacterAdded:Wait() :: Model
+local char_parts = char:GetDescendants()
 
 local tracking = {}
-local loop = nil
 
 local muffle = Instance.new('EqualizerSoundEffect')
 muffle.Name = 'muffle_eq'
@@ -20,152 +16,98 @@ muffle.LowGain = 0
 muffle.MidGain = 0
 muffle.Parent = script
 
-function raycast_collision(from, to_part:BasePart, more_filters, break_at_first_hit : boolean, ignore_invisible : boolean) : {BasePart} --more_filters : table
-	if not to_part then
-		return {}
-	end
-
-	local origin = from.Position
-	local direction = (to_part.Position - origin).Unit * (to_part.Position - origin).Magnitude
+function raycast_inview(origin : Vector3, to : Vector3, filter : {Instance}) : boolean
+	local difference = (to - origin)
+	local direction = difference.Unit * difference.Magnitude
 
 	local raycast_param = RaycastParams.new()
-	local filter_list = {from, to_part} :: {Instance}
-
-	if more_filters then
-		table.insert(filter_list, more_filters)
-	end
-
+	local filter_list = filter
 	raycast_param.IgnoreWater = true
 	raycast_param.FilterType = Enum.RaycastFilterType.Exclude
 
-	local hit_points = {}
-
-	while task.wait() do
+	while true do
 		raycast_param.FilterDescendantsInstances = filter_list
 		local ray_result = workspace:Raycast(origin, direction, raycast_param)
+		local hit = ray_result.Instance
 
 		if ray_result then
-			local hit = ray_result.Instance
-
-			if ignore_invisible and hit.Transparency == 1 then
+			if hit.Transparency == 1 then
 				table.insert(filter_list, hit)
 				continue
 			end
 
-			table.insert(hit_points, hit)
-
-			if break_at_first_hit then --if soild part add hit
-				break
-			end
-
-			table.insert(filter_list, hit)
-		else --if finished
+			return false
+		else 
 			break
 		end
 	end
-
-	return hit_points
+	return true
 end
 
-function setup(sound_object : Instance)
-	if not sound_object or not sound_object.Parent then
+function setup(sound : Sound)
+	if not sound.Parent then
 		return
 	end
 	
-	if not sound_object:IsA("Sound") or sound_object:HasTag('cant_muffle') then
+	if sound:HasTag('cant_muffle') or sound:HasTag('sound_zone') then
+		return
+	end
+	
+	--if playing globally
+	if not sound.Parent:IsA("BasePart") then
 		return
 	end
 
-	if sound_object.Parent:IsA("BasePart") then --if the sound not playing globally
-		if sound_object:HasTag('sound_zone') then --ignore sound zones
+	--if not apart of an player character
+	for _, player in pairs(game.Players:GetPlayers()) do
+		if sound:IsDescendantOf(player.Character) then
 			return
 		end
-
-		for _, player in pairs(game.Players:GetPlayers()) do --if not apart of a player character
-			if sound_object:IsDescendantOf(player.Character) then
-				return
-			end
-		end
-
-		local clone = muffle:Clone()
-		clone.Parent = sound_object
-
-		table.insert(tracking, sound_object)
 	end
+
+	local clone = muffle:Clone()
+	clone.Parent = sound
+	table.insert(tracking, sound)
 end
 
-function sound_loop()
-	local tween_speed = .25
-	local time_between_parts = 1/20
+game:GetService('RunService').Heartbeat:Connect(function()
+	for index, sound in tracking do 
+		local parent = sound.Parent :: BasePart
 
-	local from : BasePart = Instance.new('Part', workspace) --temp for calulation
-	from.CanCollide = false
-	from.CanQuery = false
-	from.Anchored = true
-	from.Transparency = 1
-	from.Position = workspace.CurrentCamera.CFrame.Position
-
-	local camera = game.Workspace.CurrentCamera
-	local char_parts = char:GetDescendants()
-
-	local is_visible = false
-	local conn
-
-	--while task.wait() do
-	conn = game:GetService('RunService').Heartbeat:Connect(function()
-		if not state then
-			conn:Disconnect()
+		--remove item if no longer exists
+		if not sound or not parent then
+			table.remove(tracking, index)
 		end
 
-		for index, sound_object in tracking do 
-			local to_part : BasePart = sound_object.Parent
-			from.CFrame = camera.CFrame
-
-			if not sound_object or not to_part then
-				table.remove(tracking, index) --remove item if no longer exists
-			end
-
-			local collisions = raycast_collision(from, to_part, char_parts, true, true)
-			local muffle = sound_object:FindFirstChildWhichIsA('EqualizerSoundEffect')
-
-			if not collisions then
-				continue
-			end
-			
-			if muffle then
-				if #collisions >= 1 then --then being blocked
-					local distance = (from.Position - to_part.Position).Magnitude
-					muffle.HighGain = -50 * (math.sqrt(distance)/5)
-					muffle.MidGain = -30 * (math.sqrt(distance)/5)
-				else
-					muffle.HighGain = 0
-					muffle.MidGain = 0
-				end
-			end
+		local collisions = raycast_inview(camera.CFrame.Position, parent.Position, char_parts)
+		local muffle = sound:FindFirstChildWhichIsA('EqualizerSoundEffect')
+		
+		if not muffle then
+			continue
 		end
-	end)
-end
+
+		if not collisions then
+			muffle.HighGain = -50 --* (math.sqrt(distance)/5)
+			muffle.MidGain = -30 --* (math.sqrt(distance)/5)
+		else
+			muffle.HighGain = 0
+			muffle.MidGain = 0
+		end
+	end
+end)
 
 for _,obj in workspace:GetDescendants() do
+	if not obj:IsA('Sound') then
+		continue
+	end
 	setup(obj)
 end
 
 workspace.DescendantAdded:Connect(function(obj)
+	if not obj:IsA('Sound') then
+		return
+	end
 	setup(obj)
 end)
-
-module.toggle_state = function(override)
-	state = override or not state
-
-	if state then
-		local coro = coroutine.create(sound_loop)
-		loop = coro
-		coroutine.resume(loop)
-	else
-		if loop then
-			coroutine.close(loop)
-		end
-	end
-end
 
 return module
