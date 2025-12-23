@@ -4,14 +4,17 @@ local plugin_icon = "rbxassetid://13029433539"
 local toolbar_name = 'Konto\'s Utilities'
 
 local selection = game:GetService('Selection')
+-- local TextService = game:GetService('TextService')
 
 local config = {} :: {any}
+local cache = {}
 
 local commands = {
 	['Camera At Part'] = function()
-		local part = Instance.new('Part', workspace)
+		local part = Instance.new('Part')
 		part.CFrame = workspace.Camera.CFrame
 		part.FrontSurface = Enum.SurfaceType.Motor
+		part.Parent = workspace
 	end,
 	
 	['Make Bounds (Model)'] = function()
@@ -28,7 +31,7 @@ local commands = {
 		bound.Color = Color3.fromRGB(255,0,0)
 		bound.Transparency = .6
 		bound.CFrame = sel:GetPivot()
-		bound.Parent = sel
+		bound.Parent = workspace
 	end,
 	
 	['Instance Info'] = function()
@@ -91,7 +94,7 @@ local commands = {
 		end
 	end,
 	
-	['Weld all to PrimePart (Model)'] = function()
+	['Weld all to PrimePart (Selection)'] = function()
 		local sel : Model = selection:Get()[1]
 		
 		local prime = sel.PrimaryPart
@@ -112,7 +115,7 @@ local commands = {
 		end
 	end,
 
-	['Property-Copy (Part)'] = function()
+	['Copy Properties (Part)'] = function()
 		local obj : BasePart = selection:Get()[1]
 
 		if not obj:IsA('BasePart') then
@@ -121,17 +124,19 @@ local commands = {
 
 		config['mat'] = obj.Material
 		config['color'] = obj.Color
+		config['transparency'] = obj.Transparency
 
 		print('Copied material and color.')
 	end,
 
-	['Property-Paste (Selection)'] = function()
-		for _, obj : Model | BasePart in selection:Get() do
+	['Mirror Properties (Selection/Cache)'] = function()
+		local function sub(obj)
 			if obj:IsA('Model') then
 				for _, part in obj:GetDescendants() do
 					if part:IsA('BasePart') then
 						part.Material = config['mat']
 						part.Color = config['color']
+						part.Transparency = config['transparency']
 					end
 				end
 			end
@@ -139,9 +144,75 @@ local commands = {
 			if obj:IsA('BasePart') then
 				obj.Material = config['mat']
 				obj.Color = config['color']
+				obj.Transparency = config['transparency']
+			end
+		end
+
+		if #cache >= 1 then
+			print('Using cache...')
+			for _, obj : Model | BasePart in cache do
+				sub(obj)
+				print(obj)
+			end
+			print('done')
+			return
+		end
+
+		for _, obj : Model | BasePart in selection:Get() do
+			sub(obj)
+		end
+	end,
+
+	['Match Parts from Color'] = function()
+		local sel : BasePart = selection:Get()[1]
+
+		if not sel then
+			warn("No object selected")
+		end
+
+		if not sel:IsA('BasePart') then
+			warn('Object is not basepart')
+		end
+
+		for _, obj in game:GetDescendants() do
+			if obj:IsA('BasePart') then
+				if obj.Color == sel.Color then
+					cache[#cache+1] = obj
+				end
+			end
+		end
+
+		print(`Set {#cache} things to cache.`)
+	end,
+
+	['Mirror Material (Selection)'] = function()
+		local sel : BasePart = selection:Get()
+		print(sel)
+
+		if #sel <= 0 then
+			warn("No object selected")
+		end
+
+		for _, obj in sel do
+			if obj:IsA('BasePart') then
+				obj.Material = config['mat']
+			end
+			
+			if obj:IsA('Model') then
+				for _, obj in obj:GetDescendants() do
+					if obj:IsA('BasePart') then
+						obj.Material = config['mat']
+					end
+				end
 			end
 		end
 	end,
+
+	['Clear Cache'] = function()
+		local len = #cache
+		table.clear(cache)
+		print(`Clear {len} things from cache.`)
+	end
 }
 
 function init()
@@ -153,7 +224,7 @@ function init()
 	return toolbar, dock
 end
 
-function make_plugin_button(toolbar, button_name, button_desc, button_icon)
+function make_plugin_button(toolbar, _, _, _)
 	local button = toolbar:CreateButton(
 		plugin_name, 
 		plugin_desc,
@@ -169,38 +240,40 @@ function ui_init(dock)
 	root.BackgroundColor3 = Color3.fromRGB(36, 36, 36)
 	
 	local ui_list = Instance.new('UIListLayout')
-	ui_list.SortOrder = Enum.SortOrder.Name
-	ui_list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	ui_list.SortOrder = Enum.SortOrder.LayoutOrder
 	ui_list.Parent = root
-	ui_list.Padding = UDim.new(0, 10)
 	
-	local padding = Instance.new('UIPadding')
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 10)
-	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 10)
-	padding.Parent = root
-
+	local header = Instance.new('TextLabel')
+	header.Size = UDim2.new(1,0,0,50)
+	header.Text = 'Kon Utils'
+	header.TextScaled = true
+	header.BackgroundColor3 = Color3.fromRGB(47, 47, 47)
+	header.TextColor3 = Color3.fromRGB(255,255,255)
+	header.LayoutOrder = -99999
+	header.Parent = root
+	
+	local i = 0
 	for name, func in commands do
+		i += 1
+		
 		local button = Instance.new('TextButton')
-		button.Size = UDim2.new(1,0,0,30)
+		button.Size = UDim2.new(1,0,0,25)
 		button.Text = name
-		button.Name = name
 		button.TextScaled = true
-		button.BackgroundColor3 = Color3.fromRGB(63, 63, 63)
+		
+		local padding = Instance.new('UIPadding')
+		padding.Parent = button
+		padding.PaddingTop = UDim.new(0,5)
+		padding.PaddingBottom = UDim.new(0,5)
+
+		if i % 2 == 0 then
+			button.BackgroundColor3 = Color3.fromRGB(63, 63, 63)
+		else
+			button.BackgroundColor3 = Color3.fromRGB(75, 75, 75)
+		end
+		
 		button.TextColor3 = Color3.fromRGB(255,255,255)
 		button.Parent = root
-		
-		local button_padding = Instance.new('UIPadding')
-		button_padding.PaddingTop = UDim.new(0,5)
-		button_padding.PaddingBottom = UDim.new(0,5)
-		button_padding.PaddingLeft = UDim.new(0,5)
-		button_padding.PaddingRight = UDim.new(0,5)
-		button_padding.Parent = button
-
-		local corner = Instance.new('UICorner')
-		corner.CornerRadius = UDim.new(0,5)
-		corner.Parent = button
 		
 		button.MouseButton1Down:Connect(func)
 	end
@@ -208,6 +281,7 @@ end
 
 local toolbar, dock = init()
 local button = make_plugin_button(toolbar, 'Open', 'Open/close Gui', plugin_icon)
+
 button.Click:Connect(function()
 	dock.Enabled = not dock.Enabled
 end)
