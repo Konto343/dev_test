@@ -1,3 +1,5 @@
+--!strict
+
 local module = {}
 
 local config = {
@@ -24,14 +26,14 @@ module.check = function(player : Player)
     end
 
     for group, kick_reason in config.blacklist_groups do
-        if player:IsInGroup(group) then
+        if player:IsInGroupAsync(group) then
             kick_reason = kick_reason or 'N/A'
             player:Kick(`Your account is inside of group that has been blacklisted from this game. Reason: {kick_reason}`)
         end
     end
 
-    for user, kick_reason in config.blacklist do
-        if player:IsFriendsWith(user) then
+    for user, _ in config.blacklist do
+        if player:IsFriendsWithAsync(user) then
             player:Kick(`Your account is friends with another account whose been blacklisted from this game. (With => {user})`)
         end
     end

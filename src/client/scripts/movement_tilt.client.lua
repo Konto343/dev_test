@@ -1,3 +1,5 @@
+--!strict
+
 local plr = game.Players.LocalPlayer
 local char = plr.Character or plr.CharacterAdded:Wait()
 local hrp : BasePart = char:FindFirstChild('HumanoidRootPart')

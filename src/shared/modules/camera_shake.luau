@@ -134,14 +134,16 @@ module.easing_styles = {
 }
 
 local rs = game:GetService("RunService")
+
 local camera = workspace.CurrentCamera
+local seed = math.random(1,10^8)
 local current_shake
 
-function lerp(a : number, b : number, t: number)
-	return a + (b - a) * t
+function lerp(from : number, to : number, progress : number)
+	return from + (to - from) * progress
 end
 
-function module:shake(intensity : number, duration : number, easing_style)
+function module:shake(intensity : number, duration : number, easing_style : (number) -> number)
 	if current_shake ~= nil then
 		current_shake:Disconnect()
 	end
@@ -153,7 +155,6 @@ function module:shake(intensity : number, duration : number, easing_style)
 	local start_time = tick()
 	local end_time = start_time + duration
 
-	local seed = math.random(1,100000)
 	local rng = Random.new(seed)
 
 	current_shake = rs.RenderStepped:Connect(function()
@@ -166,14 +167,15 @@ function module:shake(intensity : number, duration : number, easing_style)
 
 		local current_cframe = camera.CFrame
 
-		local progress = (current_time - start_time) / duration
-		progress = style_function(progress)
+		local percent_progress = style_function(
+			(current_time - start_time) / duration
+		)
 
-		local current_intensity = lerp(intensity, 0, progress)
+		local current_intensity = lerp(intensity, 0, percent_progress)
 
-		local off_x = rng:NextNumber() * current_intensity - current_intensity / 2
-		local off_y = rng:NextNumber() * current_intensity - current_intensity / 2
-		local off_z = rng:NextNumber() * current_intensity - current_intensity / 2
+		local off_x = rng:NextNumber() * current_intensity --- current_intensity / 2
+		local off_y = rng:NextNumber() * current_intensity --- current_intensity / 2
+		local off_z = rng:NextNumber() * current_intensity --- current_intensity / 2
 
 		local shake_cframe = current_cframe * CFrame.new(off_x, off_y, off_z)
 		camera.CFrame = shake_cframe

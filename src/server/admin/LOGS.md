@@ -1,5 +1,3 @@
---[[
-
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 A Bad Admin Utility
@@ -32,9 +30,5 @@ UPDATES:
 3.3.5 = Modular UI with UI lib just made for this admin system. Cool.
 3.3.6 = removed resources instance dependence for client ui, now all code.
 3.4.0 = fixed annoying f2 problems, different coloring, added command preview
-]]
-
-return {
-    _VERSION = '3.4.0',
-    _NAME = 'ABAU'
-}
+3.4.1 = Added more failsafes, reformatted code with STRICT flag. Admin is now effectively nameless, basic generated UUID will do. Client UI is now simple and transparent.
+3.4.2 = Final, future updates only for maintaince to adapt to API changes and structure changes. 

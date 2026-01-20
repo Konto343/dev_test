@@ -1,18 +1,12 @@
+--!strict
+
 local module = {}
 
-export type command = {
-	name : string,
-	requirement : number | any,
-	args : {{string}} | nil,
-	info : string,
-	run : (client : Player, args : {any}, ...any) -> ()
-}
-
 local helper = require(script.Parent.helper)
-local _client = require(script.Parent.client)
-local colors = require(script.Parent.colors)
+local config = require(script.Parent.config)
 local debug = require(script.Parent.debug)
 local ui = require(script.Parent.ui)
+local types = require(script.Parent.types)
 
 local lighting = game:GetService('Lighting')
 local players = game:GetService('Players')
@@ -47,9 +41,10 @@ module.data = {
 		name = 'fixcam',
 		info="Fixs the players camera",
 		run = function(client)
+			local char = client.Character or client.CharacterAdded:Wait()
 			local camera : Camera = workspace.CurrentCamera
 			client.CameraMode = Enum.CameraMode.Classic
-			camera.CameraSubject = client.Character:FindFirstChildWhichIsA("Humanoid")
+			camera.CameraSubject = char:FindFirstChildWhichIsA("Humanoid")
 		end
 	},	
 
@@ -66,7 +61,8 @@ module.data = {
 		name = 'focustorso',
 		info ='Focuses the camera target to your torso',
 		run = function(client)
-			local torso = client.Character:FindFirstChild("Torso") :: BasePart
+			local char = client.Character or client.CharacterAdded:Wait()
+			local torso = char:FindFirstChild("Torso") :: BasePart
 			local camera : Camera = workspace.CurrentCamera
 			camera.CameraSubject = torso
 		end
@@ -100,8 +96,9 @@ module.data = {
 		name = 'unview',
 		info="Resets your camera position",
 		run = function(client)
+			local char = client.Character or client.CharacterAdded:Wait()
 			local camera = game.Workspace:FindFirstChildWhichIsA('Camera')
-			camera.CameraSubject = client.Character.Humanoid
+			camera.CameraSubject = char:FindFirstChildWhichIsA("Humanoid")
 		end
 	},
 
@@ -172,8 +169,13 @@ module.data = {
 		requirements = 1,
 		info = "Print the version of the Basic Admin System.",
 		run = function()
-			local version = _client.remote:InvokeServer('version')
-			helper.log(version, colors.orange)
+			if not config.remote then
+				helper.log('Admin remote not found! System access not possible.', config.colors.orange)
+				return
+			end
+
+			local version = config.remote:InvokeServer('version')
+			helper.log(version, config.colors.orange)
 		end
 	},
 
@@ -183,7 +185,7 @@ module.data = {
 		args = {{'seek_term', 'String'}},
 		info = "List all the system commands",
 		run = function(_, args)
-			for _, cmd in _client.commands do
+			for _, cmd in config.commands do
 				if args[1] then
 					if cmd.name ~= args[1] then
 						continue
@@ -205,6 +207,6 @@ module.data = {
 			end
 		end	
 	}
-}
+} :: {types.command}
 
 return module

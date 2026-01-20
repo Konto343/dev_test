@@ -11,7 +11,6 @@ local helper = require(script.Parent.helper)
 local config = require(script.Parent.config)
 local types = require(script.Parent.types)
 local tasks = require(script.Parent.tasks)
-local _version = require(script.Parent.Parent._version)
 
 config.remote.OnServerInvoke = function(player : types.player, task, ...) : any | boolean
 	if task == 'command' then
@@ -28,7 +27,7 @@ config.remote.OnServerInvoke = function(player : types.player, task, ...) : any 
 	end
 
 	if task == 'version' then
-		return _version._VERSION
+		return config.version
 	end
 
 	return false
@@ -56,12 +55,17 @@ module.events = {
 		end
 		
 		player.CharacterAdded:Once(function()
-			task.wait(3)
-			local random_quote = config.system_quotes[math.random(1,#config.system_quotes)]
-			helper.chat_message(player, random_quote, Color3.fromRGB(0, 221, 255))
+			task.wait(5)
+			helper.chat_message(player, 'Admin system working.', Color3.fromRGB(0, 221, 255))
 
 			if helper.is_admin(player.UserId) then
 				helper.chat_message(player, "You're an Admin. Press F2 or the Toggle button (Mobile) to open the Console.", Color3.fromRGB(73, 154, 201))
+			
+				if not config.resources then
+					helper.chat_message(player, 'Warning: Resources folder not found, extra fuctionality not available.', config.colors.orange)
+				else
+					helper.chat_message(player, 'Resources folder found!', config.colors.green)
+				end
 			end
 		end)
 		
@@ -95,11 +99,11 @@ module.events = {
 		end
 	end),
 
-	messaging:SubscribeAsync(_version._NAME, function(message)  
+	messaging:SubscribeAsync(config.name, function(message)  
 		local data = message.Data :: {}
 		local time_sent = message.Sent :: string
 		
-		print(`[{_version._NAME}] Server task recieved => {data[1]} at {time_sent}`)
+		print(`[{config.name}] Server task recieved => {data[1]} at {time_sent}`)
 
 		local task_name = data[1]
 		local task_data = tasks.get_task(task_name)

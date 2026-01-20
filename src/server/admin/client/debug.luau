@@ -1,8 +1,9 @@
+--!strict
+
 local module = {}
 
-local client = require(script.Parent.client)
+local config = require(script.Parent.config)
 local helper = require(script.Parent.helper)
-local colors = require(script.Parent.colors)
 
 local local_player = game:GetService('Players').LocalPlayer
 
@@ -41,16 +42,20 @@ module.add_track = function(player : Player)
             local char = player.Character or player.CharacterAdded:Wait()
             track.Parent = char:FindFirstChild('Head')
 
-            local from_hrp = char:WaitForChild('HumanoidRootPart', 10^9)
-            local to_hrp = local_player.Character:WaitForChild('HumanoidRootPart', 10^9)
+            local from_hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
+            local to_hrp = local_player.Character:FindFirstChild('HumanoidRootPart') :: BasePart
+
+            if not from_hrp or not to_hrp then
+                break
+            end
 
             local from : Vector3 = from_hrp.Position
             local to : Vector3 = to_hrp.Position
             local distance = helper.decimal_limit((from - to).Magnitude, 1)
-            local dis = helper.color_richtext(`[{distance}]`, colors.orange)
+            local dis = helper.color_richtext(`[{distance}]`, config.colors.orange)
             label.Text = `{player.DisplayName} (@{player.Name}) {dis}`
 
-            task.wait(client.debug_update_speed)
+            task.wait(config.config.debug_update_speed)
         end
     end)
 
@@ -75,7 +80,7 @@ module.add_line = function(player : Player)
     line_beam.FaceCamera = true
     line_beam.Color = ColorSequence.new(
         Color3.fromRGB(206, 141, 108),
-        colors.orange
+        config.colors.orange
     )
     line_beam.Brightness = 3
     line_beam.LightEmission = 0

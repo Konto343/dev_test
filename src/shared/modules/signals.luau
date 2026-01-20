@@ -1,37 +1,37 @@
 --!strict
 
-local signals = {}
-signals.__index = signals
+local module = {}
+module.__index = module
 
 ---------------------------
 
-function signals:wait()
+function module:wait()
 	return self.event:Wait()
 end
 
-function signals:once()
+function module:once()
 	return self.event:Once()
 end
 
-function signals:connect(func)
+function module:connect(func)
 	local conn = self.event:Connect(func)
 	table.insert(self.connections, conn)
 	return conn
 end
 
-function signals:clear_connections()
+function module:clear_connections()
 	task.wait() --because :wait() no likey when clear
 	for _, conn : RBXScriptConnection in self.connections do
 		conn:Disconnect()
 	end
 end
 
-function signals:fire(...)
+function module:fire(...)
 	self._e:Fire(...)
 end
 
-function signals.new()
-	local self = setmetatable({}, signals)
+function module.new()
+	local self = setmetatable({}, module)
 	
 	self._e = Instance.new('BindableEvent')
 	self._e.Parent = script.Parent
@@ -42,4 +42,4 @@ function signals.new()
 	return self	
 end
 
-return signals
+return module

@@ -5,7 +5,7 @@ function cube()
 	part.Size = Vector3.new(2,2,2)
 	part.CanCollide = false
 	part.Anchored = true
-	part.Transparency = .96
+	part.Transparency = .5
 	part.Parent = workspace
 	return part
 end

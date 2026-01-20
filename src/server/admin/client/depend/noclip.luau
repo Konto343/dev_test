@@ -1,5 +1,4 @@
 --!strict
---modified by 343
 
 local module = {}
 local uis = game:GetService("UserInputService")

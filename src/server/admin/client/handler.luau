@@ -7,11 +7,9 @@ local players = game:GetService('Players')
 
 local local_player = players.LocalPlayer
 
-local client = require(script.Parent.client)
+local config = require(script.Parent.config)
 local cmd = require(script.Parent.cmd)
-local colors = require(script.Parent.colors)
 local helper = require(script.Parent.helper)
-
 local ui = require(script.Parent.ui)
 
 local bar = ui.bar.item
@@ -23,7 +21,7 @@ local pointer_pos = 0
 module.get_predictions = function(user_input : string) : {string}
 	local predictions = {}
 	
-	for _, data in client.commands do
+	for _, data in config.commands do
 		if user_input:sub(1,#user_input) == data.name:sub(1,#user_input) then
 			predictions[#predictions+1] = data.name
 		end
@@ -40,7 +38,7 @@ module.set_history = function()
 	end)
 end
 
-client.remote.OnClientInvoke = function(task, msg : string, color : Color3 | nil)
+config.remote.OnClientInvoke = function(task, msg : string, color : Color3 | nil)
 	if task == 'message' then
 		helper.log(msg, color)
 	end
@@ -75,7 +73,7 @@ module.events = {
 				end
 			end
 
-			ui.preview_header.item.Text = helper.color_richtext(prediction.name, colors.blue) .. ' ' .. table.concat(predictions, ' ')
+			ui.preview_header.item.Text = helper.color_richtext(prediction.name, config.colors.blue) .. ' ' .. table.concat(predictions, ' ')
 			ui.preview_details.item.Text = table.concat(args, ' ')
 			ui.preview_desc.item.Text = prediction.info
 			ui.preview.item.Visible = true
@@ -117,14 +115,14 @@ module.events = {
 			local user_input = bar.Text
 			local target_command = user_input:split(' ')[1]
 			local command_data = cmd.get_command(target_command)
-			helper.log(`> {user_input}`, colors.orange)
+			helper.log(`> {user_input}`, config.colors.orange)
 			
 			if command_data and not command_data['is_server'] then
 				cmd.process_command(local_player, user_input)
 			else
-				local result = client.remote:InvokeServer('command', user_input)
+				local result = config.remote:InvokeServer('command', user_input)
 				if not result then
-					helper.log(`Invalid command => "{target_command}"`, colors.orange)
+					helper.log(`Invalid command => "{target_command}"`, config.colors.orange)
 				end
 			end
 			

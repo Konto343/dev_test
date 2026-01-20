@@ -1,6 +1,8 @@
+--!strict
+
 local helper = require(script.Parent.helper)
 local logs = require(script.Parent.logs)
-local _version = require(script.Parent.Parent._version)
+local config = require(script.Parent.config)
 
 local players = game:GetService('Players')
 local messaging = game:GetService('MessagingService')
@@ -18,7 +20,7 @@ module.data =  {
 	{
         name = 'announce',
         args = {{'Message', 'String'}},
-        run = function(args : {})
+        run = function(args)
             local text = table.concat(args, " ")
             for _, player in players:GetPlayers() do
                 helper.announce(player, 'Global Announcement', text)
@@ -47,7 +49,7 @@ module.data =  {
             local target_id = tonumber(args[1])
             for _, player in players:GetPlayers() do
                 if player.UserId == target_id then
-                    messaging:PublishAsync(_version._NAME, {
+                    messaging:PublishAsync(config.name, {
                         'find_success',
                         player.UserId,
                         game.JobId
@@ -66,7 +68,7 @@ module.data =  {
                 local match = name_string:lower():sub(1, #target) == target
 
                 if match then
-                    messaging:PublishAsync(_version._NAME, {
+                    messaging:PublishAsync(config.name, {
                         'find_cache_success',
                         target,
                         `[{user_id}] {name_string}`
@@ -87,11 +89,11 @@ module.data =  {
                     helper.message(player, `Find (Cache) request success for: {target} => {name_string}`, Color3.fromRGB(0,255,0))
                 end
             end
-        end,
-    },
-}
+        end
+    }
+} :: {task}
 
-module.get_task = function(task_name)
+module.get_task = function(task_name) : task|nil
     for _, obj in module.data do
         if obj.name == task_name then
             return obj

@@ -5,8 +5,8 @@ mod.commands = {}
 
 local helper = require(script.Parent.helper)
 local commands = require(script.Parent.commands)
+local config = require(script.Parent.config)
 local types = require(script.Parent.types)
-local colors = require(script.Parent.colors)
 
 mod.init = function()
 	for command_name, data in commands.data do
@@ -42,13 +42,13 @@ mod.process_command = function(client : types.player, cmd_string : string)
 	local command = mod.get_command(command_name)
 
 	if not command then
-		helper.message(client, 'Invalid Command', colors.orange)
+		helper.message(client, 'Invalid Command', config.colors.orange)
 		return false
 	end
 	
 	local player_rank = helper.get_player_rank(client.UserId)
 	if player_rank < (command.requirement or 1) then
-		helper.message(client, "You don't have a high enough level to run this command!", colors.orange)
+		helper.message(client, "You don't have a high enough level to run this command!", config.colors.orange)
 		return false
 	end
 
@@ -59,7 +59,7 @@ mod.process_command = function(client : types.player, cmd_string : string)
 	if not success then
 		local errorMessage = "Command ran with an error: " .. err
 		warn('Command error:', errorMessage)
-		helper.message(client, errorMessage, colors.orange)
+		helper.message(client, errorMessage, config.colors.orange)
 		return false
 	end
 	

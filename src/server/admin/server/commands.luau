@@ -7,8 +7,6 @@ local config = require(script.Parent.config)
 local types = require(script.Parent.types)
 local logs = require(script.Parent.logs)
 local tasks = require(script.Parent.tasks)
-local colors = require(script.Parent.colors)
-local _version = require(script.Parent.Parent._version)
 
 local players = game:GetService('Players')
 local lighting = game:GetService('Lighting')
@@ -80,19 +78,24 @@ module.data = {
 		args = {{'player', 'Player'}},
 		info = "Get chat logs of a player",
 		run = function(client, args)
-			for _,player in pairs(helper.get_players(client, args[1])) do
-				local chat = logs.chats[player.UserId]
+			local player = helper.seek_player(args[1])
 
-				if not chat then
-					helper.message(client, 'There are no chat logs for this player.')
-					return
-				end
-
-				for _, msg in chat do
-					helper.message(client, `{player.DisplayName} {msg}`)
-				end
+			if not player then
+				helper.message(client, 'No player found under that query.')
+				return
 			end
-		end,
+
+			local chat = logs.chats[player.UserId]
+
+			if not chat then
+				helper.message(client, 'There are no chat logs for player: {}')
+				return
+			end
+
+			for _, msg in chat do
+				helper.message(client, `{player.DisplayName} {msg}`)
+			end
+		end
 	},
 
 	{
@@ -103,7 +106,7 @@ module.data = {
 			helper.message(client, ('[all: %i]'):format(#logs.join_leaves))
 			
 			for _, msg in logs.join_leaves do
-				local color = msg:match('JOIN') and colors.blue or colors.orange
+				local color = msg:match('JOIN') and config.colors.blue or config.colors.orange
 				helper.message(client, msg, color)
 			end
 		end,
@@ -114,7 +117,7 @@ module.data = {
 		requirement = 0,
 		info = "This is used for client/server testing.",
 		run = function(client)
-			helper.message(client, "Testing message. Nice.", colors.orange)
+			helper.message(client, "Testing message. Nice.", config.colors.orange)
 		end,
 	},
 
@@ -131,7 +134,7 @@ module.data = {
 
 			for _, player in targets do
 				helper.message(client, "Granted admin to "..player.DisplayName)
-				helper.update_admin(player, target_rank)
+				helper.update_admin(player.UserId, target_rank)
 			end
 		end,
 	},
@@ -174,9 +177,13 @@ module.data = {
 				end
 
 				local arg_string = ''
-				for _, arg_set in obj.args do
-					arg_string ..= `[{table.concat(arg_set, ' : ')}] `
+
+				if obj.args then
+					for _, arg_set in obj.args do
+						arg_string ..= `[{table.concat(arg_set, ' : ')}] `
+					end
 				end
+
 				helper.message(client, ('%-20s %s'):format(obj.name, arg_string))
 			end
 		end,
@@ -188,7 +195,7 @@ module.data = {
 		args = {{'task', 'String'}, {'args', '...'}},
 		info = 'Give out a task for *all* servers to do.',
 		run = function(_, args)
-			messaging:PublishAsync(_version._NAME, args)
+			messaging:PublishAsync(config.name, args)
 		end,
 	},
 
@@ -201,6 +208,7 @@ module.data = {
 				if player.UserId == client.UserId then
 					continue
 				end
+
 				helper.give_vanish(player, client.UserId)
 			end
 		end,
@@ -215,6 +223,7 @@ module.data = {
 				if player.UserId == client.UserId then
 					continue
 				end
+
 				helper.give_unvanish(player, client.UserId)
 			end
 		end,
@@ -347,7 +356,7 @@ module.data = {
 				local message = ''
 
 				local user = 'N/A'
-				local color = colors.green
+				local color = config.colors.green
 
 				pcall(function()
 					user = players:GetNameFromUserIdAsync(data.user_id)
@@ -355,7 +364,7 @@ module.data = {
 
 				if data.user_id == client.UserId then
 					message = ('[YOU] %s (%i) => LVL %i'):format(user, data.user_id, data.rank)
-					color = colors.orange
+					color = config.colors.orange
 				else
 					message = ('%s (%i) => LVL %i'):format(user, data.user_id, data.rank)
 				end
@@ -396,9 +405,11 @@ module.data = {
 		info = "Display a ui message to players",
 		run = function(client, args)
 			local words = {}
+
 			for i=2,#args do
 				table.insert(words,args[i])
 			end
+
 			local message = table.concat(words," ")
 
 			for _,player in pairs(helper.get_players(client, args[1])) do
@@ -414,9 +425,11 @@ module.data = {
 		info = "Display a chat message to players",
 		run = function(client, args)
 			local words = {}
+
 			for i=2,#args do
 				table.insert(words,args[i])
 			end
+
 			local message = table.concat(words," ")
 
 			for _,player in pairs(helper.get_players(client, args[1])) do
@@ -432,12 +445,14 @@ module.data = {
 		info = "Kill a person",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 				local humanoid = char:FindFirstChildWhichIsA('Humanoid')
 
-				if humanoid then
-					humanoid.Health = 0
+				if not humanoid then
+					continue
 				end
+
+				humanoid.Health = 0
 			end
 		end
 	},
@@ -451,8 +466,12 @@ module.data = {
 			local targets = args[1] or 'me'
 
 			for _,player in pairs(helper.get_players(client, targets)) do
-				local char : types.char_r6 = player.Character 
-				local hrp = char.HumanoidRootPart
+				local char = player.Character or player.CharacterAdded:Wait()
+				local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
+
+				if not hrp then
+					continue
+				end
 
 				hrp.Anchored = not hrp.Anchored
 			end
@@ -479,10 +498,13 @@ module.data = {
 		run = function(client, args)
 			local target = args[1] or 'me'
 			for _,player in pairs(helper.get_players(client,target)) do
-				local char = player.Character 
-				if char then
-					char:PivotTo(char:GetPivot() * CFrame.new(0,0,-5))
+				local char = player.Character or player.CharacterAdded:Wait()
+				
+				if not char then
+					continue
 				end
+
+				char:PivotTo(char:GetPivot() * CFrame.new(0,0,-5))
 			end
 		end
 	},
@@ -494,13 +516,15 @@ module.data = {
 		info = "Freeze a person (Sets walk and jump power to zero)",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 				local humanoid = char:FindFirstChildWhichIsA('Humanoid')
 
-				if humanoid then
-					humanoid.WalkSpeed = 0
-					humanoid.JumpPower = 0
-				end			
+				if not humanoid then
+					continue
+				end	
+
+				humanoid.WalkSpeed = 0
+				humanoid.JumpPower = 0
 			end
 		end
 	},
@@ -512,13 +536,15 @@ module.data = {
 		info = "Unfreeze a person",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 				local humanoid = char:FindFirstChildWhichIsA('Humanoid')
 
-				if humanoid then
-					humanoid.WalkSpeed = 16
-					humanoid.JumpPower = 50
+				if not humanoid then
+					continue
 				end
+
+				humanoid.WalkSpeed = 16
+				humanoid.JumpPower = 50
 			end
 		end
 	},
@@ -530,7 +556,7 @@ module.data = {
 		info = "Make a person invisible",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 
 				for _, obj in pairs(char:GetDescendants()) do
 					if obj.Name == 'HumanoidRootPart' then
@@ -555,7 +581,7 @@ module.data = {
 						obj.Enabled = false
 					end
 
-					if obj:IsA('ParticleEmiiter') then
+					if obj:IsA('ParticleEmitter') then
 						obj.Enabled = false
 					end
 				end
@@ -570,7 +596,7 @@ module.data = {
 		info = "Make a person visible",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 
 				for _, obj in pairs(char:GetDescendants()) do
 					if obj.Name == 'HumanoidRootPart' then
@@ -595,7 +621,7 @@ module.data = {
 						obj.Enabled = true
 					end
 
-					if obj:IsA('ParticleEmiiter') then
+					if obj:IsA('ParticleEmitter') then
 						obj.Enabled = true
 					end
 				end
@@ -610,14 +636,27 @@ module.data = {
 		info = "Give person a trail",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
+				local head = char:FindFirstChild('Head')
+				local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
+
+				if not head or not hrp then
+					continue
+				end
+
+				local head_att = head:FindFirstChild('NeckRigAttachment')
+				local hrp_att = hrp:FindFirstChild('RootAttachment')
 				local trail : any = char:FindFirstChild('Trail')
+
+				if not hrp_att or not head_att then
+					continue
+				end
 
 				if not trail then
 					trail = Instance.new('Trail')
 					trail.Parent = char
-					trail.Attachment0 = char.HumanoidRootPart.RootAttachment
-					trail.Attachment1 = char.Head:FindFirstChild('NeckRigAttachment')
+					trail.Attachment0 = hrp_att
+					trail.Attachment1 = head_att
 					trail.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(188, 188, 188))
 				else
 					trail:Destroy()
@@ -633,8 +672,14 @@ module.data = {
 		info = "Go to a person",
 		run = function(client, args)
 			for _, player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
-				client.Character.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame
+				local char = player.Character or player.CharacterAdded:Wait()
+				local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
+
+				if not hrp then
+					continue
+				end
+
+				client.Character.HumanoidRootPart.CFrame = hrp.CFrame
 			end
 		end
 	},
@@ -646,9 +691,17 @@ module.data = {
 		info = "Bring a person to you",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
-				local client_char : types.char_r6 = client.Character
-				char.HumanoidRootPart.CFrame = client_char.HumanoidRootPart.CFrame
+				local char = player.Character or player.CharacterAdded:Wait()
+				local client_char = client.Character or client.CharacterAdded:Wait()
+
+				if not char or not client_char then
+					continue
+				end
+
+				local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
+				local client_hrp = client_char:FindFirstChild('HumanoidRootPart') :: BasePart
+
+				hrp.CFrame = client_hrp.CFrame
 			end
 		end
 	},
@@ -660,13 +713,15 @@ module.data = {
 		info = "Set a persons health to inf.",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 				local humanoid = char:FindFirstChildWhichIsA('Humanoid')
 
-				if humanoid then
-					humanoid.MaxHealth = math.huge
-					humanoid.Health = math.huge
+				if not humanoid then
+					continue
 				end	
+				
+				humanoid.MaxHealth = math.huge
+				humanoid.Health = math.huge
 			end
 		end
 	},
@@ -678,14 +733,16 @@ module.data = {
 		info = "Respawn a person",
 		run = function(client, args)
 			for _, player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character  
-				local og_pos = char.HumanoidRootPart.Position
+				local char = player.Character or player.CharacterAdded:Wait()
+				local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
+				local og_pos = hrp.Position
 
-				player:LoadCharacter()
+				player:LoadCharacterAsync()
 
 				repeat 
-					task.wait() 
-				until (char ~= nil) and char:FindFirstChild('HumanoidRootPart')
+					task.wait()
+					char = player.Character or player.CharacterAdded:Wait()
+				until char and char:FindFirstChild('HumanoidRootPart')
 
 				char:MoveTo(og_pos)
 			end
@@ -699,7 +756,7 @@ module.data = {
 		info = "Add a force field",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 				local force = Instance.new("ForceField")
 				force.Parent = char
 			end
@@ -742,7 +799,8 @@ module.data = {
 		info = "Remove a force field",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
+
 				for _,Obj in pairs(char:GetDescendants()) do
 					if Obj:IsA('ForceField') then
 						Obj:Destroy()
@@ -759,13 +817,15 @@ module.data = {
 		info = "Set a persons health to Normal",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 				local humanoid = char:FindFirstChildWhichIsA('Humanoid')
 
-				if humanoid then
-					humanoid.MaxHealth = 100
-					humanoid.Health = 100
+				if not humanoid then
+					continue
 				end	
+
+				humanoid.MaxHealth = 100
+				humanoid.Health = 100
 			end
 		end
 	},
@@ -779,12 +839,14 @@ module.data = {
 			local value = tonumber(args[2])
 
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
-				local humanoid = char.Humanoid
+				local char = player.Character or player.CharacterAdded:Wait()
+				local humanoid = char:FindFirstChildWhichIsA('Humanoid')
 
-				if humanoid then
-					humanoid.WalkSpeed = value or 16
+				if not humanoid then
+					continue
 				end
+
+				humanoid.WalkSpeed = value or 16
 			end
 		end
 	},
@@ -798,13 +860,15 @@ module.data = {
 			local value = tonumber(args[2])
 
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
-				local humanoid = char.Humanoid
+				local char = player.Character or player.CharacterAdded:Wait() 
+				local humanoid = char:FindFirstChildWhichIsA('Humanoid')
 
-				if humanoid then
-					humanoid.UseJumpPower = true
-					humanoid.JumpPower = value or 50
+				if not humanoid then
+					continue
 				end
+
+				humanoid.UseJumpPower = true
+				humanoid.JumpPower = value or 50
 			end
 		end
 	},
@@ -819,10 +883,12 @@ module.data = {
 			for _,player in pairs(helper.get_players(client, args[1])) do
 				local tool = helper.seek_object(config.resources.tools, target)
 
-				if tool ~= nil then
-					local clone = tool:Clone()
-					clone.Parent = player.Backpack
+				if not tool then
+					continue
 				end
+
+				local clone = tool:Clone()
+				clone.Parent = player.Backpack
 			end
 		end
 	},
@@ -847,8 +913,8 @@ module.data = {
 		info = "Send a player into the sky",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
-				local hrp = char.HumanoidRootPart 
+				local char = player.Character or player.CharacterAdded:Wait()
+				local hrp = char:FindFirstChild('HumanoidRootPart') 
 
 				local body_force = Instance.new("BodyVelocity") 
 				body_force.Velocity = Vector3.new(math.huge,math.huge,math.huge)
@@ -879,7 +945,7 @@ module.data = {
 		info = "Gives a player extreme/insane drip",
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 
 				for _,obj in pairs(char:GetChildren()) do
 					if obj:IsA('Shirt') or obj:IsA('Pants') then
@@ -916,7 +982,7 @@ module.data = {
 			local amount = tonumber(args[3]) or 1
 
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
 				local obj = helper.seek_object(config.resources.props, target)
 				local padding_height = 10
 
@@ -928,7 +994,7 @@ module.data = {
 					local clone = obj:Clone()
 					clone.Parent = config.spawned_items
 
-					local hrp = char.HumanoidRootPart
+					local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
 					local to = (hrp.CFrame * CFrame.new(0,padding_height * index,0))
 
 					if clone:IsA('Model') then
@@ -957,8 +1023,9 @@ module.data = {
 					box.Size = Vector3.new(size, size, size)
 					box.Parent = config.spawned_items
 
-					local char : types.char_r6 = player.Character 
-					local pos = char.HumanoidRootPart.Position + Vector3.new(0,padding_height * index,0)
+					local char = player.Character or player.CharacterAdded:Wait()
+					local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
+					local pos = hrp.Position + Vector3.new(0,padding_height * index,0)
 					box.Position = pos
 				end
 			end
@@ -975,7 +1042,8 @@ module.data = {
 			local amount = tonumber(args[3]) or 1
 
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
+				local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
 				local npc = helper.seek_object(config.resources.npcs, target or 'dummy')
 				local padding_height = 5
 
@@ -987,7 +1055,7 @@ module.data = {
 					local clone = npc:Clone()
 					clone.Parent = config.spawned_items
 
-					local pos = char.HumanoidRootPart.CFrame * CFrame.new(0,padding_height * index,0)
+					local pos = hrp.CFrame * CFrame.new(0,padding_height * index,0)
 
 					if clone:IsA('Model') then
 						clone:PivotTo(pos)
@@ -1007,7 +1075,8 @@ module.data = {
 			local amount = tonumber(args[3]) or 1
 
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
+				local char = player.Character or player.CharacterAdded:Wait()
+				local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
 				local obj = helper.seek_object(config.resources.vehicles, target) :: Model
 				local padding_height = 40
 
@@ -1018,7 +1087,7 @@ module.data = {
 				for index=1, amount do
 					local clone = obj:Clone()
 					clone.Parent = config.spawned_items
-					clone:MoveTo(char.HumanoidRootPart.Position + Vector3.new(20, padding_height * index ,20))
+					clone:MoveTo(hrp.Position + Vector3.new(20, padding_height * index ,20))
 				end
 			end
 		end
@@ -1042,8 +1111,14 @@ module.data = {
 			local target = tonumber(args[2]) or 0
 
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : types.char_r6 = player.Character 
-				char.Humanoid:ApplyDescription(players:GetHumanoidDescriptionFromUserId(target))
+				local char = player.Character or player.CharacterAdded:Wait()
+				local humanoid = char:FindFirstChildWhichIsA('Humanoid')
+
+				if not humanoid then
+					continue
+				end
+
+				humanoid:ApplyDescriptionAsync(players:GetHumanoidDescriptionFromUserId(target))
 			end
 		end
 	},
@@ -1055,8 +1130,12 @@ module.data = {
 		info ='Break the joints of a player.',
 		run = function(client, args)
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char : any = player.Character 
-				char:BreakJoints()
+				local char = player.Character or player.CharacterAdded:Wait()
+				for _, obj in char:GetDescendants() do
+					if obj:IsA('JointInstance') then
+						obj:Destroy()
+					end
+				end
 			end
 		end
 	},
@@ -1070,8 +1149,8 @@ module.data = {
 			local factor = tonumber(args[2])
 
 			for _,player in pairs(helper.get_players(client, args[1])) do
-				local char = player.Character 
-				char:ScaleTo(factor)
+				local char = player.Character or player.CharacterAdded:Wait()
+				char:ScaleTo(factor or 1)
 			end
 		end,
 	},
@@ -1085,6 +1164,7 @@ module.data = {
 			for _,player in pairs(helper.get_players(client, args[1])) do
 				config.resources.ui.Freecam:Clone().Parent = player.PlayerGui
 			end
+
 			return "You now have freecam (Shift + P, to activate/stop)"
 		end
 	},
@@ -1148,10 +1228,10 @@ module.data = {
 		args = {},
 		info = "Create a 2048 by 2048 baseplate directly below you.",
 		run = function(client)
-			local char = helper.get_players(client, 'me')[1].Character :: types.char_r6
-
+			local char = client.Character or client.CharacterAdded:Wait()
+			local hrp = char:FindFirstChild('HumanoidRootPart') :: BasePart
 			local baseplate = config.resources.other.Baseplate:Clone()
-			baseplate.Position = char.HumanoidRootPart.Position + Vector3.new(0,-20,0)
+			baseplate.Position = hrp.Position + Vector3.new(0,-20,0)
 			baseplate.Parent = workspace
 		end
 	},
@@ -1218,7 +1298,7 @@ module.data = {
 
 			for _, player in targets do
 				local strange = config.resources.other.strange_matter:Clone()
-				strange.Parent = player.Character
+				strange.Parent = player.Character or player.CharacterAdded:Wait()
 				strange.self_.Enabled = true
 			end
 		end,
@@ -1234,7 +1314,7 @@ module.data = {
 
 			for _, player in targets do
 				local strange = config.resources.other.t9_safe_guard:Clone()
-				strange.Parent = player.Character
+				strange.Parent = player.Character or player.CharacterAdded:Wait()
 				strange.self_.Enabled = true
 			end
 		end,

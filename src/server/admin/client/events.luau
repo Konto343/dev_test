@@ -1,7 +1,8 @@
+--!strict
+
 local module = {}
 
 local debug = require(script.Parent.debug)
-local helper = require(script.Parent.helper)
 
 local players = game:GetService('Players')
 
@@ -20,7 +21,6 @@ module.events = {
 for _, player in players:GetPlayers() do
     debug.add_track(player)
     debug.add_line(player)
-    helper.add_player_listing(player)
 end
 
 return module

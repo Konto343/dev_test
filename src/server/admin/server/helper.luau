@@ -2,12 +2,13 @@
 
 local module = {}
 local config = require(script.Parent.config)
-local _version = require(script.Parent.Parent._version)
 
 local players = game:GetService('Players')
 local teams = game:GetService('Teams')
 
-local attach = config.system_folder.attach
+local top = script.Parent.Parent
+local attach = top.attach
+local client = top.client
 
 module.ensure_object = function(object_name : string, object_class : string, path : any)
 	local object = path:FindFirstChild(object_name)
@@ -44,9 +45,10 @@ module.process_admin = function(player : Player)
 	if module.is_admin(player.UserId) then
 		local player_gui = player:FindFirstChild('PlayerGui')
 
-		local client = config.system_folder.client:Clone() :: Folder
-		client.Parent = player_gui
-		client:SetAttribute('host', _version._NAME)
+		local clone = client:Clone()
+		clone.Parent = player_gui
+		clone:SetAttribute('system_name', config.name)
+		clone._init.Enabled = true
 	end
 end
 
@@ -73,8 +75,8 @@ module.get_player_rank = function(user_id : number)
 	return admin.rank
 end
 
-module.message = function(client : Player, message : string, color : Color3 | nil)
-	config.remote:InvokeClient(client, 'message', message, color)	
+module.message = function(player : Player, message : string, color : Color3 | nil)
+	config.remote:InvokeClient(player, 'message', message, color)	
 end
 
 module.give_vanish = function(player : Player, admin_id : number)
@@ -113,9 +115,9 @@ module.seek_object = function(source : Folder, input : string) : Instance | nil
 	return nil
 end
 
-module.get_players = function(client : Player, arg : string) : {any}
-	local list = {} :: {Player}
-	local args = arg:lower():split(',')
+module.get_players = function(player : Player, input : string) : {Player}
+	local list = {}
+	local args = input:lower():split(',')
 
 	for _, arg in args do
 		if arg:sub(1,1) == '@' then
@@ -123,38 +125,38 @@ module.get_players = function(client : Player, arg : string) : {any}
 			local team = teams:FindFirstChild(team_name) :: Team
 
 			if team then
-				for _, player in team:GetPlayers() do
-					table.insert(list, player)
+				for _, plr in team:GetPlayers() do
+					table.insert(list, plr)
 				end
 			end
 		end
 
 		if arg == "me" or arg == "self" then
-			table.insert(list, client)
+			table.insert(list, player)
 
 		elseif arg == "others" then
-			for _,player in pairs(players:GetPlayers()) do
-				if player ~= client then
-					table.insert(list,player)
+			for _, plr in pairs(players:GetPlayers()) do
+				if plr ~= player then
+					table.insert(list, plr)
 				end
 			end
 
 		elseif arg == "all" or arg == "everyone" or arg == "*" then
-			for _,player in pairs(players:GetPlayers()) do
-				table.insert(list,player)
+			for _, plr in pairs(players:GetPlayers()) do
+				table.insert(list, plr)
 			end
 
 		elseif arg == "admins" then
-			for _,player in pairs(players:GetPlayers()) do
-				if module.is_admin(player.UserId) then
-					table.insert(list,player)
+			for _, plr in pairs(players:GetPlayers()) do
+				if module.is_admin(plr.UserId) then
+					table.insert(list, plr)
 				end
 			end
 
 		elseif arg == "nonadmins" then
-			for _,player in pairs(players:GetPlayers()) do
-				if module.is_admin(player.UserId) == false then
-					table.insert(list,player)
+			for _, plr in pairs(players:GetPlayers()) do
+				if not module.is_admin(plr.UserId) then
+					table.insert(list, plr)
 				end
 			end
 		else
